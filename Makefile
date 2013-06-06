@@ -1,4 +1,7 @@
-default:
-	go test
+default: fmt test
 
-test: default
+fmt:
+	go fmt
+
+test:
+	go test
