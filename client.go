@@ -3,6 +3,7 @@ package rtmp
 import (
   "bytes"
   "crypto/tls"
+  "encoding/binary"
   "errors"
   "fmt"
   "io"
@@ -110,11 +111,37 @@ func (c *Client) dispatchLoop() {
 
     switch m.ChunkStreamId {
     case CHUNK_STREAM_ID_PROTOCOL:
-      log.Debug("dispatch protocol message")
+      c.handleProtocolMessage(m)
     case CHUNK_STREAM_ID_COMMAND:
-      log.Debug("dispatch command message")
+      c.handleCommandMessage(m)
     }
   }
+}
+
+func (c *Client) handleProtocolMessage(m *Message) {
+  switch m.Type {
+  case MESSAGE_TYPE_CHUNK_SIZE:
+    size := binary.BigEndian.Uint32(m.Buffer.Bytes())
+    log.Debug("setting chunk %d -> %d", c.inChunkSize, size)
+    c.inChunkSize = size
+
+  case MESSAGE_TYPE_ACK_SIZE:
+    log.Debug("ignoring ack size")
+
+  case MESSAGE_TYPE_BANDWIDTH:
+    size := binary.BigEndian.Uint32(m.Buffer.Bytes())
+    log.Debug("ignoring bandwidth %d", size)
+
+  default:
+    log.Debug("ignoring other protocol message %d", m.Type)
+
+  }
+}
+
+func (c *Client) handleCommandMessage(m *Message) {
+  log.Debug("command message: %+v", m)
+
+  c.connected = true
 }
 
 func (c *Client) sendLoop() {
