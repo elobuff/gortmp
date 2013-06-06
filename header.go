@@ -2,6 +2,7 @@ package rtmp
 
 import (
   "encoding/binary"
+  "io"
 )
 
 type Header struct {
@@ -18,7 +19,7 @@ func NewHeader() *Header {
   return &Header{}
 }
 
-func ReadHeader(r Reader) (Header, error) {
+func ReadHeader(r io.Reader) (Header, error) {
   h := *NewHeader()
   u8 := make([]byte, 1)
   u16 := make([]byte, 2)

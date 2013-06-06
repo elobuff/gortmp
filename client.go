@@ -1,7 +1,6 @@
 package rtmp
 
 import (
-  "bufio"
   "bytes"
   "crypto/tls"
   "errors"
@@ -24,8 +23,6 @@ type Client struct {
   connected         bool
 
   conn              net.Conn
-  reader            *bufio.Reader
-  writer            *bufio.Writer
 
   outBytes          uint32
   outMessages       chan *Message
@@ -84,9 +81,6 @@ func (c *Client) Connect() (err error) {
     return errors.New(fmt.Sprintf("Unsupported scheme: %s", url.Scheme))
   }
 
-  c.reader = bufio.NewReader(c.conn)
-  c.writer = bufio.NewWriter(c.conn)
-
   err = c.handshake()
   if err != nil {
     return err
@@ -133,7 +127,7 @@ func (c *Client) sendLoop() {
 func (c *Client) receiveLoop() {
   for {
     // Read the next header from the connection
-    h, err := ReadHeader(c.reader)
+    h, err := ReadHeader(c)
     if err != nil {
       if c.connected {
         log.Warn("unable to receive next header while connected")
@@ -216,7 +210,7 @@ func (c *Client) receiveLoop() {
       rs = c.inChunkSize
     }
 
-    _, err = io.CopyN(m.Buffer, c.reader, int64(rs))
+    _, err = io.CopyN(m.Buffer, c, int64(rs))
     if err != nil {
       if c.connected {
         log.Warn("unable to copy %d message bytes from buffer", rs)
@@ -238,13 +232,13 @@ func (c *Client) receiveLoop() {
 func (c *Client) Read(p []byte) (n int, err error) {
   n, err = c.conn.Read(p)
   c.inBytes += uint32(n)
-  log.Debug("read %d", n)
+  log.Debug("read %d: %v", n, p)
   return n, err
 }
 
 func (c *Client) Write(p []byte) (n int, err error) {
   n, err = c.conn.Write(p)
   c.outBytes += uint32(n)
-  log.Debug("read %d", n)
+  log.Debug("write %d: %v", n, p)
   return n, err
 }
