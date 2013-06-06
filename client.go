@@ -2,13 +2,16 @@ package rtmp
 
 import (
   "bytes"
+  "code.google.com/p/go-uuid/uuid"
   "crypto/tls"
   "encoding/binary"
   "errors"
   "fmt"
+  "github.com/elobuff/goamf"
   "io"
   "net"
   "net/url"
+  "sync/atomic"
 )
 
 type ClientHandler interface {
@@ -38,7 +41,7 @@ type Client struct {
   inChunkSize       uint32
   inChunkStreams    map[uint32]*InboundChunkStream
 
-  lastTid           uint32
+  lastTransactionId uint32
 }
 
 func NewClient(url string) (*Client, error) {
@@ -47,7 +50,7 @@ func NewClient(url string) (*Client, error) {
 
     connected:        false,
 
-    outMessages:      make(chan *Message),
+    outMessages:      make(chan *Message, 100),
     outChunkSize:     DEFAULT_CHUNK_SIZE,
     outWindowSize:    DEFAULT_WINDOW_SIZE,
     outChunkStreams:  make(map[uint32]*OutboundChunkStream),
@@ -67,6 +70,8 @@ func NewClient(url string) (*Client, error) {
 }
 
 func (c *Client) Connect() (err error) {
+  log.Info("connecting to %s", c.url)
+
   url, err := url.Parse(c.url)
   if err != nil {
     return err
@@ -87,7 +92,10 @@ func (c *Client) Connect() (err error) {
     return err
   }
 
-  c.connected = true
+  err = c.connectCommand()
+  if err != nil {
+    return err
+  }
 
   go c.dispatchLoop()
   go c.receiveLoop()
@@ -96,6 +104,65 @@ func (c *Client) Connect() (err error) {
   log.Info("connected to %s", c.url)
 
   return nil
+}
+
+func (c *Client) NextTransactionId() uint32 {
+  return atomic.AddUint32(&c.lastTransactionId, 1)
+}
+
+func (c *Client) connectCommand() (err error) {
+  buf := new(bytes.Buffer)
+
+  amf.WriteString(buf, "connect")
+
+  tid := c.NextTransactionId()
+  amf.WriteDouble(buf, float64(tid))
+
+  opts := *amf.MakeObject()
+  opts["app"] = ""
+  opts["flashVer"] = "WIN 10,1,85,3"
+  opts["swfUrl"] = "app://mod_ser.dat"
+  opts["tcUrl"] = c.url
+  opts["fpad"] = false
+  opts["capabilities"] = 239
+  opts["audioCodecs"] = 3191
+  opts["videoCodecs"] = 252
+  opts["videoFunction"] = 1
+  opts["pageUrl"] = nil
+  opts["objectEncoding"] = 3
+
+  cmh := *amf.MakeObject()
+  cmh["DSMessagingVersion"] = 1
+  cmh["DSId"] = "my-rtmps"
+
+  cm := *amf.MakeTypedObject()
+  cm.Type = "flex.messaging.messages.CommandMessage"
+  cm.Object["destination"] = ""
+  cm.Object["operation"] = 5
+  cm.Object["correlationId"] = ""
+  cm.Object["timestamp"] = 0
+  cm.Object["timeToLive"] = 0
+  cm.Object["messageId"] = uuid.New()
+  cm.Object["body"] = nil
+  cm.Object["headers"] = cmh
+
+  amf.WriteObject(buf, opts)
+
+  amf.WriteBoolean(buf, false)
+  amf.WriteString(buf, "nil")
+  amf.WriteString(buf, "")
+  amf.AMF3_WriteValue(buf, cm)
+
+  m := &Message{
+    ChunkStreamId:  CHUNK_STREAM_ID_COMMAND,
+    Type:           MESSAGE_TYPE_AMF0,
+    Length:         uint32(buf.Len()),
+    Buffer:         buf,
+  }
+
+  c.outMessages <- m
+
+  return
 }
 
 func (c *Client) Disconnect() {
