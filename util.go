@@ -1,7 +1,7 @@
 package rtmp
 
 import (
-	"github.com/elobuff/gologger"
+	"github.com/jcoene/gologger"
 	"time"
 )
 
