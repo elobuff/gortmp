@@ -28,7 +28,7 @@ func NewInboundChunkStream(id uint32) *InboundChunkStream {
   }
 }
 
-func (cs *OutboundChunkStream) NewOutboundChunkStream(m *Message) *Header {
+func (cs *OutboundChunkStream) NewOutboundHeader(m *Message) *Header {
   h := &Header {
     ChunkStreamId: cs.Id,
     MessageLength: uint32(m.Buffer.Len()),

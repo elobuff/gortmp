@@ -2,6 +2,7 @@ package rtmp
 
 import (
   "encoding/binary"
+  "errors"
   "io"
 )
 
@@ -109,6 +110,98 @@ func ReadHeader(r io.Reader) (Header, error) {
   }
 
   return h, nil
+}
+
+func (h *Header) Write(w io.Writer) (n int, err error) {
+  m := 0
+  u8 := make([]byte, 1)
+  u32 := make([]byte, 4)
+
+  switch {
+  case h.ChunkStreamId <= 63:
+    u8[0] = byte(h.Format << 6) | byte(h.ChunkStreamId)
+    _, err = w.Write(u8)
+    if err != nil {
+      return
+    }
+    n += 1
+
+  case h.ChunkStreamId <= 319:
+    u8[0] = byte(h.Format << 6)
+    _, err = w.Write(u8)
+    if err != nil {
+      return
+    }
+    n += 1
+
+    u8[0] = byte(h.ChunkStreamId - 64)
+    _, err = w.Write(u8)
+    if err != nil {
+      return
+    }
+    n += 1
+
+  case h.ChunkStreamId <= 65599:
+    u8[0] = byte(h.Format << 6) | byte(0x01)
+    _, err = w.Write(u8)
+    if err != nil {
+      return
+    }
+    n += 1
+
+    tmp := uint16(h.ChunkStreamId - 64)
+    err = binary.Write(w, binary.BigEndian, &tmp)
+    if err != nil {
+      return
+    }
+    n += 2
+
+  default:
+    return n, errors.New("chunk stream too large")
+  }
+
+  if h.Format <= HEADER_FORMAT_SAME_LENGTH_AND_STREAM {
+    binary.BigEndian.PutUint32(u32, h.Timestamp)
+    m, err = w.Write(u32[1:])
+    if err != nil {
+      return
+    }
+    n += m
+  }
+
+  if h.Format <= HEADER_FORMAT_SAME_STREAM {
+    binary.BigEndian.PutUint32(u32, h.MessageLength)
+    m, err = w.Write(u32[1:])
+    if err != nil {
+      return
+    }
+    n += m
+
+    u8[0] = byte(h.MessageTypeId)
+    _, err = w.Write(u8)
+    if err != nil {
+      return
+    }
+    n += 1
+  }
+
+  if h.Format == HEADER_FORMAT_FULL {
+    err = binary.Write(w, binary.LittleEndian, &h.MessageStreamId)
+    if err != nil {
+      return
+    }
+    n += 4
+  }
+
+  if h.Timestamp >= TIMESTAMP_EXTENDED {
+    err = binary.Write(w, binary.BigEndian, &h.ExtendedTimestamp)
+    if err != nil {
+      return
+    }
+    n += 4
+  }
+
+  return
 }
 
 func (h *Header) CalculateTimestamp() uint32 {

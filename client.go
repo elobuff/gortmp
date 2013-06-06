@@ -120,7 +120,54 @@ func (c *Client) dispatchLoop() {
 func (c *Client) sendLoop() {
   for {
     m := <- c.outMessages
-    log.Debug("send message %+v", m)
+
+    var cs *OutboundChunkStream = c.outChunkStreams[m.ChunkStreamId]
+    if cs == nil {
+      cs = NewOutboundChunkStream(m.ChunkStreamId)
+    }
+
+    h := cs.NewOutboundHeader(m)
+
+    var n int64 = 0
+    var err error
+    var ws uint32 = 0
+    var rem uint32 = m.Length
+
+    for rem > 0 {
+      log.Debug("rem is %d", rem)
+      log.Debug("send message header: %+v", h)
+      _, err = h.Write(c)
+      if err != nil {
+        if c.connected {
+          log.Warn("unable to send header: %v", err)
+          c.Disconnect()
+        }
+        return
+      }
+
+      ws = rem
+      if ws > c.outChunkSize {
+        ws = c.outChunkSize
+      }
+
+      n, err = io.CopyN(c, m.Buffer, int64(ws))
+      if err != nil {
+        if c.connected {
+          log.Warn("unable to send message")
+          c.Disconnect()
+        }
+        return
+      }
+
+      rem -= uint32(n)
+
+      // Set the header to continuation only for the
+      // next iteration (if it happens).
+      h.Format = HEADER_FORMAT_CONTINUATION
+    }
+
+    log.Debug("finished sending message")
+
   }
 }
 
@@ -232,13 +279,13 @@ func (c *Client) receiveLoop() {
 func (c *Client) Read(p []byte) (n int, err error) {
   n, err = c.conn.Read(p)
   c.inBytes += uint32(n)
-  log.Debug("read %d: %v", n, p)
+  log.Debug("read %d", n)
   return n, err
 }
 
 func (c *Client) Write(p []byte) (n int, err error) {
   n, err = c.conn.Write(p)
   c.outBytes += uint32(n)
-  log.Debug("write %d: %v", n, p)
+  log.Debug("write %d", n)
   return n, err
 }
