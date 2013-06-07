@@ -39,6 +39,11 @@ const (
 )
 
 const (
+	AMF0 = 0x00
+	AMF3 = 0x03
+)
+
+const (
 	MESSAGE_DISPATCH_QUEUE_LENGTH = 100
 )
 
