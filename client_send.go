@@ -6,7 +6,14 @@ import (
 
 func (c *Client) sendLoop() {
 	for {
-		m := <-c.outMessages
+		m, open := <-c.outMessages
+
+		if !open {
+			log.Trace("client send: channel closed, exiting")
+			return
+		}
+
+		log.Trace("client send: processing message: %#v", m)
 
 		var cs *OutboundChunkStream = c.outChunkStreams[m.ChunkStreamId]
 		if cs == nil {
@@ -21,12 +28,12 @@ func (c *Client) sendLoop() {
 		var rem uint32 = m.Length
 
 		for rem > 0 {
-			log.Debug("send header: %+v", h)
+			log.Trace("client send: send header: %+v", h)
 			_, err = h.Write(c)
 			if err != nil {
-				if c.connected {
+				if c.IsAlive() {
 					log.Warn("unable to send header: %v", err)
-					c.Disconnect()
+					c.Reset()
 				}
 				return
 			}
@@ -36,13 +43,13 @@ func (c *Client) sendLoop() {
 				ws = c.outChunkSize
 			}
 
-			log.Debug("send bytes: %d", ws)
+			log.Trace("client send: send bytes: %d", ws)
 
 			n, err = io.CopyN(c, m.Buffer, int64(ws))
 			if err != nil {
-				if c.connected {
+				if c.IsAlive() {
 					log.Warn("unable to send message")
-					c.Disconnect()
+					c.Reset()
 				}
 				return
 			}
@@ -54,7 +61,7 @@ func (c *Client) sendLoop() {
 			h.Format = HEADER_FORMAT_CONTINUATION
 		}
 
-		log.Debug("send complete")
+		log.Trace("client send: send complete")
 
 	}
 }

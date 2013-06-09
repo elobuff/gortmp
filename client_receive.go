@@ -10,9 +10,9 @@ func (c *Client) receiveLoop() {
 		// Read the next header from the connection
 		h, err := ReadHeader(c)
 		if err != nil {
-			if c.connected {
+			if c.IsAlive() {
 				log.Warn("unable to receive next header while connected")
-				c.Disconnect()
+				c.Reset()
 			}
 			return
 		}
@@ -30,7 +30,7 @@ func (c *Client) receiveLoop() {
 
 		if (cs.lastHeader == nil) && (h.Format != HEADER_FORMAT_FULL) {
 			log.Warn("unable to find previous header on chunk stream %d", h.ChunkStreamId)
-			c.Disconnect()
+			c.Reset()
 			return
 		}
 
@@ -95,7 +95,7 @@ func (c *Client) receiveLoop() {
 		if err != nil {
 			if c.connected {
 				log.Warn("unable to copy %d message bytes from buffer", rs)
-				c.Disconnect()
+				c.Reset()
 			}
 
 			return
@@ -103,6 +103,7 @@ func (c *Client) receiveLoop() {
 
 		if m.RemainingBytes() == 0 {
 			cs.currentMessage = nil
+			log.Trace("receive sending message to router: %#v", m)
 			c.inMessages <- m
 		} else {
 			cs.currentMessage = m

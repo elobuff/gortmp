@@ -5,19 +5,14 @@ import (
 	"github.com/elobuff/goamf"
 	"net"
 	"net/url"
+	"sync"
 	"sync/atomic"
+	"time"
 )
-
-type ClientHandler interface {
-	OnRtmpConnect()
-	OnRtmpDisconnect()
-	OnRtmpCommand(command *Command)
-}
 
 type Client struct {
 	url string
 
-	handler   ClientHandler
 	connected bool
 
 	conn net.Conn
@@ -29,42 +24,73 @@ type Client struct {
 	outWindowSize   uint32
 	outChunkSize    uint32
 	outChunkStreams map[uint32]*OutboundChunkStream
+	inBytes         uint32
+	inMessages      chan *Message
+	inNotify        chan uint8
+	inWindowSize    uint32
+	inChunkSize     uint32
+	inChunkStreams  map[uint32]*InboundChunkStream
 
-	inBytes        uint32
-	inMessages     chan *Message
-	inNotify       chan uint8
-	inWindowSize   uint32
-	inChunkSize    uint32
-	inChunkStreams map[uint32]*InboundChunkStream
+	results      map[uint32]*Result
+	resultsMutex sync.Mutex
 
 	lastTransactionId uint32
 	connectionId      string
 }
 
-func NewClient(url string, handler ClientHandler) (*Client, error) {
-	c := &Client{
+func NewClient(url string) (c *Client, err error) {
+	c = &Client{
 		url: url,
-
-		connected:       false,
-		handler:         handler,
-		enc:             *new(amf.Encoder),
-		dec:             *new(amf.Decoder),
-		outMessages:     make(chan *Message, 100),
-		outChunkSize:    DEFAULT_CHUNK_SIZE,
-		outWindowSize:   DEFAULT_WINDOW_SIZE,
-		outChunkStreams: make(map[uint32]*OutboundChunkStream),
-		inMessages:      make(chan *Message, 100),
-		inChunkSize:     DEFAULT_CHUNK_SIZE,
-		inWindowSize:    DEFAULT_WINDOW_SIZE,
-		inChunkStreams:  make(map[uint32]*InboundChunkStream),
 	}
 
-	err := c.Connect()
-	if err != nil {
-		return c, err
+	c.Reset()
+	err = c.Connect()
+	return
+}
+
+func (c *Client) IsAlive() bool {
+	if c.connected != true {
+		return false
 	}
 
-	return c, err
+	return true
+}
+
+func (c *Client) Reset() {
+	c.connected = false
+
+	if c.conn != nil {
+		c.conn.Close()
+	}
+
+	if c.outMessages != nil {
+		close(c.outMessages)
+	}
+
+	if c.inMessages != nil {
+		close(c.inMessages)
+	}
+
+	c.enc = *new(amf.Encoder)
+	c.dec = *new(amf.Decoder)
+	c.outBytes = 0
+	c.outMessages = make(chan *Message, 100)
+	c.outChunkSize = DEFAULT_CHUNK_SIZE
+	c.outWindowSize = DEFAULT_WINDOW_SIZE
+	c.outChunkStreams = make(map[uint32]*OutboundChunkStream)
+	c.inBytes = 0
+	c.inMessages = make(chan *Message, 100)
+	c.inChunkSize = DEFAULT_CHUNK_SIZE
+	c.inWindowSize = DEFAULT_WINDOW_SIZE
+	c.inChunkStreams = make(map[uint32]*InboundChunkStream)
+	c.results = make(map[uint32]*Result)
+	c.lastTransactionId = 0
+	c.connectionId = ""
+}
+
+func (c *Client) Disconnect() {
+	c.Reset()
+	log.Info("disconnected from %s", c.url, c.outBytes, c.inBytes)
 }
 
 func (c *Client) Connect() (err error) {
@@ -89,33 +115,61 @@ func (c *Client) Connect() (err error) {
 
 	err = c.handshake()
 	if err != nil {
-		return err
+		return Error("client connect: could not complete handshake: %s", err)
 	}
 
 	log.Debug("sending connect command to %s", c.url)
 
-	err = c.invokeConnect()
-	if err != nil {
-		return err
-	}
-
-	go c.dispatchLoop()
 	go c.receiveLoop()
 	go c.sendLoop()
+	go c.routeLoop()
 
-	return nil
+	var id string
+	id, err = c.connect()
+	if err != nil {
+		return Error("client connect: could not complete connect: %s", err)
+	}
+
+	c.connected = true
+	c.connectionId = id
+
+	log.Info("connected to %s (%s)", c.url, c.connectionId)
+
+	return
 }
 
 func (c *Client) NextTransactionId() uint32 {
 	return atomic.AddUint32(&c.lastTransactionId, 1)
 }
 
-func (c *Client) Disconnect() {
-	c.connected = false
-	c.conn.Close()
-	c.handler.OnRtmpDisconnect()
+func (c *Client) Call(msg *Message, t uint32) (result *Result, err error) {
+	c.outMessages <- msg
 
-	log.Info("disconnected from %s", c.url, c.outBytes, c.inBytes)
+	tid := msg.TransactionId
+	poll := time.Tick(time.Duration(5) * time.Millisecond)
+	timeout := time.After(time.Duration(t) * time.Second)
+
+	for {
+		select {
+		case <-poll:
+			log.Trace("client call: polling for result for tid %d", tid)
+			c.resultsMutex.Lock()
+			result = c.results[tid]
+			if result != nil {
+				log.Trace("client call: found result for %d", tid)
+				delete(c.results, tid)
+			}
+			c.resultsMutex.Unlock()
+
+			if result != nil {
+				return
+			}
+		case <-timeout:
+			return result, Error("timed out after %d seconds", t)
+		}
+	}
+
+	return
 }
 
 func (c *Client) Read(p []byte) (n int, err error) {

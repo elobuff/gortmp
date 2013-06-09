@@ -11,6 +11,7 @@ type Message struct {
 	StreamId          uint32
 	Timestamp         uint32
 	AbsoluteTimestamp uint32
+	TransactionId     uint32
 	Length            uint32
 	Buffer            *bytes.Buffer
 }
@@ -23,50 +24,46 @@ func (m *Message) RemainingBytes() uint32 {
 	return m.Length - uint32(m.Buffer.Len())
 }
 
-func (m *Message) DecodeCommand(dec *amf.Decoder) (*Command, error) {
-	var err error
-	var obj interface{}
-
-	cmd := new(Command)
-	cmd.Version = AMF0
+func (m *Message) DecodeResult(dec *amf.Decoder) (result *Result, err error) {
+	result = new(Result)
 
 	if m.ChunkStreamId != CHUNK_STREAM_ID_COMMAND {
-		return cmd, Error("message is not a command message")
+		return result, Error("message is not a command message")
 	}
 
 	switch m.Type {
 	case MESSAGE_TYPE_AMF3:
-		cmd.Version = AMF3
 		_, err = m.Buffer.ReadByte()
 		if err != nil {
-			return cmd, Error("unable to read first byte of amf3 message")
+			return result, Error("unable to read first byte of amf3 message")
 		}
 		fallthrough
 
 	case MESSAGE_TYPE_AMF0:
-		cmd.Name, err = dec.DecodeAmf0String(m.Buffer, true)
+		result.Name, err = dec.DecodeAmf0String(m.Buffer, true)
 		if err != nil {
-			return cmd, Error("unable to read command from amf message")
+			return result, Error("unable to read command from amf message")
 		}
 
-		cmd.TransactionId, err = dec.DecodeAmf0Number(m.Buffer, true)
+		result.TransactionId, err = dec.DecodeAmf0Number(m.Buffer, true)
 		if err != nil {
-			return cmd, Error("unable to read tid from amf message")
+			return result, Error("unable to read tid from amf message")
 		}
 
+		var obj interface{}
 		for m.Buffer.Len() > 0 {
 			obj, err = dec.Decode(m.Buffer, 0)
 			if err != nil {
-				return cmd, Error("unable to read object from amf message: %s", err)
+				return result, Error("unable to read object from amf message: %s", err)
 			}
 
-			cmd.Objects = append(cmd.Objects, obj)
+			result.Objects = append(result.Objects, obj)
 		}
 	default:
-		return cmd, Error("unable to decode message: %+v", m)
+		return result, Error("unable to decode message: %+v", m)
 	}
 
-	log.Debug("command decoded: %+v", cmd)
+	log.Debug("command decoded: %+v", result)
 
-	return cmd, err
+	return result, err
 }

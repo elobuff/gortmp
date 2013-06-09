@@ -6,12 +6,39 @@ import (
 	"github.com/elobuff/goamf"
 )
 
-func (c *Client) invokeConnect() (err error) {
-	buf := new(bytes.Buffer)
-	tid := c.NextTransactionId()
+func (c *Client) connect() (id string, err error) {
+	var msg *Message
+	msg, err = EncodeConnect(c)
+	if err != nil {
+		return id, Error("client connect: unable to encode connect command: %s", err)
+	}
 
-	c.enc.Encode(buf, "connect", 0)
-	c.enc.Encode(buf, float64(tid), 0)
+	var result *Result
+	result, err = c.Call(msg, 10)
+	if err != nil {
+		return id, Error("client connect: unable to complete connect: %s", err)
+	}
+
+	if !result.IsResult() {
+		return id, Error("client connect: connect result unsuccessful: %#v", result)
+	}
+
+	obj, ok := result.Objects[1].(amf.Object)
+	if !ok {
+		return id, Error("client connect: unable to find connect response: %#v", result)
+	}
+
+	if obj["code"] != "NetConnection.Connect.Success" {
+		return id, Error("client connect: connection was unsuccessful: %#v", result)
+	}
+
+	id = obj["id"].(string)
+
+	return
+}
+
+func EncodeConnect(c *Client) (msg *Message, err error) {
+	tid := c.NextTransactionId()
 
 	opts := make(amf.Object)
 	opts["app"] = ""
@@ -26,16 +53,11 @@ func (c *Client) invokeConnect() (err error) {
 	opts["pageUrl"] = nil
 	opts["objectEncoding"] = 3
 
-	c.enc.Encode(buf, opts, 0)
-	c.enc.Encode(buf, false, 0)
-	c.enc.Encode(buf, "nil", 0)
-	c.enc.Encode(buf, "", 0)
-
 	cmh := make(amf.Object)
 	cmh["DSMessagingVersion"] = 1
 	cmh["DSId"] = "my-rtmps"
 
-	cm := amf.NewTypedObject()
+	cm := *amf.NewTypedObject()
 	cm.Type = "flex.messaging.messages.CommandMessage"
 	cm.Object["destination"] = ""
 	cm.Object["operation"] = 5
@@ -46,40 +68,37 @@ func (c *Client) invokeConnect() (err error) {
 	cm.Object["body"] = nil
 	cm.Object["headers"] = cmh
 
-	c.enc.Encode(buf, cm, 0)
+	buf := new(bytes.Buffer)
+	if _, err = c.enc.Encode(buf, "connect", 0); err != nil {
+		return
+	}
+	if _, err = c.enc.Encode(buf, tid, 0); err != nil {
+		return
+	}
+	if _, err = c.enc.Encode(buf, opts, 0); err != nil {
+		return
+	}
+	if _, err = c.enc.Encode(buf, false, 0); err != nil {
+		return
+	}
+	if _, err = c.enc.Encode(buf, "nil", 0); err != nil {
+		return
+	}
+	if _, err = c.enc.Encode(buf, "", 0); err != nil {
+		return
+	}
+	if err = c.enc.EncodeAmf0Amf3Marker(buf); err != nil {
+		return
+	}
+	if _, err = c.enc.Encode(buf, cm, 3); err != nil {
+		return
+	}
 
-	m := &Message{
-		ChunkStreamId: CHUNK_STREAM_ID_COMMAND,
+	return &Message{
 		Type:          MESSAGE_TYPE_AMF0,
+		ChunkStreamId: CHUNK_STREAM_ID_COMMAND,
+		TransactionId: tid,
 		Length:        uint32(buf.Len()),
 		Buffer:        buf,
-	}
-
-	c.outMessages <- m
-
-	return
-}
-
-func (c *Client) handleConnectResult(cmd *Command) {
-	log.Debug("connect response received from %s", c.url)
-
-	obj, ok := cmd.Objects[1].(amf.Object)
-	if !ok {
-		log.Error("unable to find connect result in command response")
-		c.Disconnect()
-		return
-	}
-
-	if obj["code"] != "NetConnection.Connect.Success" {
-		log.Error("connect unsuccessful: %s", obj["code"])
-		c.Disconnect()
-		return
-	}
-
-	c.connected = true
-	c.connectionId = obj["id"].(string)
-	c.handler.OnRtmpConnect()
-	log.Info("connected to %s (%s)", c.url, c.connectionId)
-
-	return
+	}, err
 }
