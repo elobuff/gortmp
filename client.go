@@ -152,7 +152,6 @@ func (c *Client) Call(msg *Message, t uint32) (result *Result, err error) {
 	for {
 		select {
 		case <-poll:
-			log.Trace("client call: polling for result for tid %d", tid)
 			c.resultsMutex.Lock()
 			result = c.results[tid]
 			if result != nil {
@@ -165,7 +164,7 @@ func (c *Client) Call(msg *Message, t uint32) (result *Result, err error) {
 				return
 			}
 		case <-timeout:
-			return result, Error("timed out after %d seconds", t)
+			return result, Error("timed out (no response after %d seconds)", t)
 		}
 	}
 
