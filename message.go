@@ -24,46 +24,46 @@ func (m *Message) RemainingBytes() uint32 {
 	return m.Length - uint32(m.Buffer.Len())
 }
 
-func (m *Message) DecodeResult(dec *amf.Decoder) (result *Result, err error) {
-	result = new(Result)
+func (m *Message) DecodeResponse(dec *amf.Decoder) (response *Response, err error) {
+	response = new(Response)
 
 	if m.ChunkStreamId != CHUNK_STREAM_ID_COMMAND {
-		return result, Error("message is not a command message")
+		return response, Error("message is not a command message")
 	}
 
 	switch m.Type {
 	case MESSAGE_TYPE_AMF3:
 		_, err = m.Buffer.ReadByte()
 		if err != nil {
-			return result, Error("unable to read first byte of amf3 message")
+			return response, Error("unable to read first byte of amf3 message")
 		}
 		fallthrough
 
 	case MESSAGE_TYPE_AMF0:
-		result.Name, err = dec.DecodeAmf0String(m.Buffer, true)
+		response.Name, err = dec.DecodeAmf0String(m.Buffer, true)
 		if err != nil {
-			return result, Error("unable to read command from amf message")
+			return response, Error("unable to read command from amf message")
 		}
 
-		result.TransactionId, err = dec.DecodeAmf0Number(m.Buffer, true)
+		response.TransactionId, err = dec.DecodeAmf0Number(m.Buffer, true)
 		if err != nil {
-			return result, Error("unable to read tid from amf message")
+			return response, Error("unable to read tid from amf message")
 		}
 
 		var obj interface{}
 		for m.Buffer.Len() > 0 {
 			obj, err = dec.Decode(m.Buffer, 0)
 			if err != nil {
-				return result, Error("unable to read object from amf message: %s", err)
+				return response, Error("unable to read object from amf message: %s", err)
 			}
 
-			result.Objects = append(result.Objects, obj)
+			response.Objects = append(response.Objects, obj)
 		}
 	default:
-		return result, Error("unable to decode message: %+v", m)
+		return response, Error("unable to decode message: %+v", m)
 	}
 
-	log.Debug("command decoded: %+v", result)
+	log.Debug("command decoded: %+v", response)
 
-	return result, err
+	return response, err
 }

@@ -23,15 +23,15 @@ func (c *Client) routeLoop() {
 }
 
 func (c *Client) routeCommandMessage(msg *Message) {
-	result, err := msg.DecodeResult(&c.dec)
+	response, err := msg.DecodeResponse(&c.dec)
 	if err != nil {
 		log.Error("unable to decode message type %d on stream %d into command, discarding: %s", msg.Type, msg.ChunkStreamId, err)
 		return
 	}
 
-	tid := uint32(result.TransactionId)
+	tid := uint32(response.TransactionId)
 
-	c.resultsMutex.Lock()
-	c.results[tid] = result
-	c.resultsMutex.Unlock()
+	c.responsesMutex.Lock()
+	c.responses[tid] = response
+	c.responsesMutex.Unlock()
 }

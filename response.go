@@ -4,34 +4,46 @@ import (
 	"github.com/elobuff/goamf"
 )
 
-type Result struct {
+type Response struct {
 	Name          string
 	TransactionId float64
 	Objects       []interface{}
 }
 
-type ResultError struct {
+type ResponseError struct {
 	Type         string
 	ErrorCode    string
 	Message      string
 	Substitution string
 }
 
-func (r *Result) IsResult() bool {
+func (r *Response) IsResult() bool {
 	return r.Name == "_result"
 }
 
-func (r *Result) IsError() bool {
+func (r *Response) IsError() bool {
 	return r.Name == "_error"
 }
 
-func (r *Result) DecodeError() (result ResultError, err error) {
+func (r *Response) DecodeBody() (result interface{}, err error) {
+	for _, obj := range r.Objects {
+		if tobj, ok := obj.(amf.TypedObject); ok == true {
+			if body := tobj.Object["body"]; body != nil {
+				return body, nil
+			}
+		}
+	}
+
+	return result, Error("Could not extract body")
+}
+
+func (r *Response) DecodeError() (result ResponseError, err error) {
 	for _, obj := range r.Objects {
 		if tobj, ok := obj.(amf.TypedObject); ok == true {
 			if tobj.Type == "flex.messaging.messages.ErrorMessage" {
 				if rc := tobj.Object["rootCause"]; rc != nil {
 					if rootCause, ok := rc.(amf.TypedObject); ok == true {
-						result = *new(ResultError)
+						result = *new(ResponseError)
 						result.Type = rootCause.Type
 
 						if tmp, ok := rootCause.Object["errorCode"].(string); ok {

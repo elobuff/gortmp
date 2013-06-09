@@ -31,8 +31,8 @@ type Client struct {
 	inChunkSize     uint32
 	inChunkStreams  map[uint32]*InboundChunkStream
 
-	results      map[uint32]*Result
-	resultsMutex sync.Mutex
+	responses      map[uint32]*Response
+	responsesMutex sync.Mutex
 
 	lastTransactionId uint32
 	connectionId      string
@@ -83,7 +83,7 @@ func (c *Client) Reset() {
 	c.inChunkSize = DEFAULT_CHUNK_SIZE
 	c.inWindowSize = DEFAULT_WINDOW_SIZE
 	c.inChunkStreams = make(map[uint32]*InboundChunkStream)
-	c.results = make(map[uint32]*Result)
+	c.responses = make(map[uint32]*Response)
 	c.lastTransactionId = 0
 	c.connectionId = ""
 }
@@ -142,7 +142,7 @@ func (c *Client) NextTransactionId() uint32 {
 	return atomic.AddUint32(&c.lastTransactionId, 1)
 }
 
-func (c *Client) Call(msg *Message, t uint32) (result *Result, err error) {
+func (c *Client) Call(msg *Message, t uint32) (response *Response, err error) {
 	c.outMessages <- msg
 
 	tid := msg.TransactionId
@@ -152,19 +152,19 @@ func (c *Client) Call(msg *Message, t uint32) (result *Result, err error) {
 	for {
 		select {
 		case <-poll:
-			c.resultsMutex.Lock()
-			result = c.results[tid]
-			if result != nil {
-				log.Trace("client call: found result for %d", tid)
-				delete(c.results, tid)
+			c.responsesMutex.Lock()
+			response = c.responses[tid]
+			if response != nil {
+				log.Trace("client call: found response for %d", tid)
+				delete(c.responses, tid)
 			}
-			c.resultsMutex.Unlock()
+			c.responsesMutex.Unlock()
 
-			if result != nil {
+			if response != nil {
 				return
 			}
 		case <-timeout:
-			return result, Error("timed out (no response after %d seconds)", t)
+			return response, Error("timed out (no response after %d seconds)", t)
 		}
 	}
 

@@ -13,23 +13,23 @@ func (c *Client) connect() (id string, err error) {
 		return id, Error("client connect: unable to encode connect command: %s", err)
 	}
 
-	var result *Result
-	result, err = c.Call(msg, 10)
+	var response *Response
+	response, err = c.Call(msg, 10)
 	if err != nil {
 		return id, Error("client connect: unable to complete connect: %s", err)
 	}
 
-	if !result.IsResult() {
-		return id, Error("client connect: connect result unsuccessful: %#v", result)
+	if !response.IsResult() {
+		return id, Error("client connect: connect result unsuccessful: %#v", response)
 	}
 
-	obj, ok := result.Objects[1].(amf.Object)
+	obj, ok := response.Objects[1].(amf.Object)
 	if !ok {
-		return id, Error("client connect: unable to find connect response: %#v", result)
+		return id, Error("client connect: unable to find connect response: %#v", response)
 	}
 
 	if obj["code"] != "NetConnection.Connect.Success" {
-		return id, Error("client connect: connection was unsuccessful: %#v", result)
+		return id, Error("client connect: connection was unsuccessful: %#v", response)
 	}
 
 	id = obj["id"].(string)
