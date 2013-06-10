@@ -6,7 +6,15 @@ import (
 	"github.com/elobuff/goamf"
 )
 
-func (c *Client) EncodeInvoke(destination string, operation string, vals ...interface{}) (msg *Message, err error) {
+func (c *Client) EncodeInvokeCommand(destination interface{}, operation interface{}, body interface{}) (msg *Message, err error) {
+	return c.EncodeInvoke("flex.messaging.messages.CommandMessage", destination, operation, body)
+}
+
+func (c *Client) EncodeInvokeRemote(destination interface{}, operation interface{}, body interface{}) (msg *Message, err error) {
+	return c.EncodeInvoke("flex.messaging.messages.RemotingMessage", destination, operation, body)
+}
+
+func (c *Client) EncodeInvoke(className string, destination interface{}, operation interface{}, body interface{}) (msg *Message, err error) {
 	tid := c.NextTransactionId()
 
 	rmh := make(amf.Object)
@@ -14,13 +22,8 @@ func (c *Client) EncodeInvoke(destination string, operation string, vals ...inte
 	rmh["DSId"] = c.connectionId
 	rmh["DSEndpoint"] = "my-rtmps"
 
-	var body []interface{}
-	for _, val := range vals {
-		body = append(body, val)
-	}
-
 	rm := *amf.NewTypedObject()
-	rm.Type = "flex.messaging.messages.RemotingMessage"
+	rm.Type = className
 	rm.Object["destination"] = destination
 	rm.Object["operation"] = operation
 	rm.Object["messageId"] = uuid.New()
