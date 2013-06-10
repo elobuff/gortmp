@@ -1,6 +1,7 @@
 package rtmp
 
 import (
+	"fmt"
 	"github.com/elobuff/goamf"
 )
 
@@ -69,6 +70,8 @@ func (r *Response) DecodeError() (result ResponseError, err error) {
 			}
 		}
 	}
+
+	result.Message = fmt.Sprintf("%+v", r)
 
 	return result, Error("Could not decode object error")
 }
