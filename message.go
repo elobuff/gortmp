@@ -63,7 +63,7 @@ func (m *Message) DecodeResponse(dec *amf.Decoder) (response *Response, err erro
 		return response, Error("unable to decode message: %+v", m)
 	}
 
-	log.Debug("command decoded: %+v", response)
+	log.Trace("command decoded: %+v", response)
 
 	return response, err
 }
