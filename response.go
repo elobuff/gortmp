@@ -12,8 +12,7 @@ type Response struct {
 }
 
 type ResponseError struct {
-	Type         string
-	ErrorCode    string
+	Code         string
 	Message      string
 	Substitution string
 }
@@ -28,8 +27,8 @@ func (r *Response) IsError() bool {
 
 func (r *Response) DecodeBody() (result interface{}, err error) {
 	for _, obj := range r.Objects {
-		if tobj, ok := obj.(amf.TypedObject); ok == true {
-			if body := tobj.Object["body"]; body != nil {
+		if obj, ok := obj.(amf.Object); ok == true {
+			if body := obj["body"]; body != nil {
 				return body, nil
 			}
 		}
@@ -40,32 +39,31 @@ func (r *Response) DecodeBody() (result interface{}, err error) {
 
 func (r *Response) DecodeError() (result ResponseError, err error) {
 	for _, obj := range r.Objects {
-		if tobj, ok := obj.(amf.TypedObject); ok == true {
-			if tobj.Type == "flex.messaging.messages.ErrorMessage" {
-				if rc := tobj.Object["rootCause"]; rc != nil {
-					if rootCause, ok := rc.(amf.TypedObject); ok == true {
-						result = *new(ResponseError)
-						result.Type = rootCause.Type
+		if obj, ok := obj.(amf.Object); ok == true {
+			if rc := obj["rootCause"]; rc != nil {
+				if rcobj, ok := rc.(amf.Object); ok == true {
+					result = *new(ResponseError)
 
-						if tmp, ok := rootCause.Object["errorCode"].(string); ok {
-							result.ErrorCode = tmp
-						}
+					if tmp, ok := rcobj["errorCode"].(string); ok {
+						result.Code = tmp
+					}
 
-						if tmp, ok := rootCause.Object["message"].(string); ok {
-							result.Message = tmp
-						}
+					if tmp, ok := rcobj["message"].(string); ok {
+						result.Message = tmp
+					}
 
-						if sa := rootCause.Object["substitutionArguments"]; sa != nil {
-							if subArgs, ok := sa.(amf.Array); ok {
-								len := len(subArgs)
-								if tmp, ok := subArgs[len-1].(string); ok {
+					if sa := rcobj["substitutionArguments"]; sa != nil {
+						if subArgs, ok := sa.(amf.Array); ok {
+							length := len(subArgs)
+							if length > 0 {
+								if tmp, ok := subArgs[length-1].(string); ok {
 									result.Substitution = tmp
 								}
 							}
 						}
-
-						return
 					}
+
+					return
 				}
 			}
 		}
