@@ -23,7 +23,7 @@ func (c *Client) routeLoop() {
 }
 
 func (c *Client) routeCommandMessage(msg *Message) {
-	response, err := msg.DecodeResponse(&c.dec)
+	response, err := msg.DecodeResponse()
 	if err != nil {
 		log.Error("unable to decode message type %d on stream %d into command, discarding: %s", msg.Type, msg.ChunkStreamId, err)
 		return

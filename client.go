@@ -2,7 +2,6 @@ package rtmp
 
 import (
 	"crypto/tls"
-	"github.com/elobuff/goamf"
 	"net"
 	"net/url"
 	"sync"
@@ -16,8 +15,6 @@ type Client struct {
 	connected bool
 
 	conn net.Conn
-	enc  amf.Encoder
-	dec  amf.Decoder
 
 	outBytes        uint32
 	outMessages     chan *Message
@@ -71,8 +68,6 @@ func (c *Client) Reset() {
 		close(c.inMessages)
 	}
 
-	c.enc = *new(amf.Encoder)
-	c.dec = *new(amf.Decoder)
 	c.outBytes = 0
 	c.outMessages = make(chan *Message, 100)
 	c.outChunkSize = DEFAULT_CHUNK_SIZE

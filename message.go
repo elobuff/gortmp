@@ -24,7 +24,8 @@ func (m *Message) RemainingBytes() uint32 {
 	return m.Length - uint32(m.Buffer.Len())
 }
 
-func (m *Message) DecodeResponse(dec *amf.Decoder) (response *Response, err error) {
+func (m *Message) DecodeResponse() (response *Response, err error) {
+	dec := new(amf.Decoder)
 	response = new(Response)
 
 	if m.ChunkStreamId != CHUNK_STREAM_ID_COMMAND {

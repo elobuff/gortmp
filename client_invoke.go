@@ -33,6 +33,7 @@ func (c *Client) EncodeInvoke(className string, destination interface{}, operati
 	rm.Object["headers"] = rmh
 	rm.Object["body"] = body
 
+	enc := new(amf.Encoder)
 	buf := new(bytes.Buffer)
 
 	// amf3 empty byte
@@ -41,12 +42,12 @@ func (c *Client) EncodeInvoke(className string, destination interface{}, operati
 	}
 
 	// amf0 command
-	if _, err = c.enc.EncodeAmf0Null(buf, true); err != nil {
+	if _, err = enc.EncodeAmf0Null(buf, true); err != nil {
 		return msg, Error("client invoke: could not encode amf0 command: %s", err)
 	}
 
 	// amf0 tid
-	if _, err = c.enc.EncodeAmf0Number(buf, float64(tid), true); err != nil {
+	if _, err = enc.EncodeAmf0Number(buf, float64(tid), true); err != nil {
 		return msg, Error("client invoke: could not encode amf0 tid: %s", err)
 	}
 
@@ -56,12 +57,12 @@ func (c *Client) EncodeInvoke(className string, destination interface{}, operati
 	}
 
 	// amf0 amf3
-	if err = c.enc.EncodeAmf0Amf3Marker(buf); err != nil {
+	if err = enc.EncodeAmf0Amf3Marker(buf); err != nil {
 		return msg, Error("client invoke: could not encode amf3 0x11 byte: %s", err)
 	}
 
 	// amf3 object
-	if _, err = c.enc.EncodeAmf3(buf, rm); err != nil {
+	if _, err = enc.EncodeAmf3(buf, rm); err != nil {
 		return msg, Error("client invoke: could not encode amf3 object: %s", err)
 	}
 

@@ -68,29 +68,30 @@ func EncodeConnect(c *Client) (msg *Message, err error) {
 	cm.Object["body"] = nil
 	cm.Object["headers"] = cmh
 
+	enc := new(amf.Encoder)
 	buf := new(bytes.Buffer)
-	if _, err = c.enc.Encode(buf, "connect", 0); err != nil {
+	if _, err = enc.Encode(buf, "connect", 0); err != nil {
 		return
 	}
-	if _, err = c.enc.Encode(buf, tid, 0); err != nil {
+	if _, err = enc.Encode(buf, tid, 0); err != nil {
 		return
 	}
-	if _, err = c.enc.Encode(buf, opts, 0); err != nil {
+	if _, err = enc.Encode(buf, opts, 0); err != nil {
 		return
 	}
-	if _, err = c.enc.Encode(buf, false, 0); err != nil {
+	if _, err = enc.Encode(buf, false, 0); err != nil {
 		return
 	}
-	if _, err = c.enc.Encode(buf, "nil", 0); err != nil {
+	if _, err = enc.Encode(buf, "nil", 0); err != nil {
 		return
 	}
-	if _, err = c.enc.Encode(buf, "", 0); err != nil {
+	if _, err = enc.Encode(buf, "", 0); err != nil {
 		return
 	}
-	if err = c.enc.EncodeAmf0Amf3Marker(buf); err != nil {
+	if err = enc.EncodeAmf0Amf3Marker(buf); err != nil {
 		return
 	}
-	if _, err = c.enc.Encode(buf, cm, 3); err != nil {
+	if _, err = enc.Encode(buf, cm, 3); err != nil {
 		return
 	}
 
