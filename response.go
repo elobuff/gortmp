@@ -34,7 +34,7 @@ func (r *Response) DecodeBody() (result interface{}, err error) {
 		}
 	}
 
-	return result, Error("Could not extract body")
+	return nil, nil
 }
 
 func (r *Response) DecodeError() (result ResponseError, err error) {
