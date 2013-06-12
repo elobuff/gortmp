@@ -85,7 +85,7 @@ func (c *Client) Reset() {
 
 func (c *Client) Disconnect() {
 	c.Reset()
-	log.Info("disconnected from %s", c.url, c.outBytes, c.inBytes)
+	log.Info("disconnected from %s", c.url)
 }
 
 func (c *Client) Connect() (err error) {

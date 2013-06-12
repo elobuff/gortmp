@@ -7,7 +7,7 @@ func (c *Client) routeLoop() {
 		log.Trace("client route: received message: %#v", msg)
 
 		if !open {
-			log.Trace("client route: channel closed, exiting")
+			log.Debug("client route: channel closed, exiting")
 			return
 		}
 

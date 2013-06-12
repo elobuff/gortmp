@@ -9,7 +9,7 @@ func (c *Client) sendLoop() {
 		m, open := <-c.outMessages
 
 		if !open {
-			log.Trace("client send: channel closed, exiting")
+			log.Debug("client send: channel closed, exiting")
 			return
 		}
 

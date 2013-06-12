@@ -13,6 +13,8 @@ func (c *Client) receiveLoop() {
 			if c.IsAlive() {
 				log.Warn("unable to receive next header while connected")
 				c.Reset()
+			} else {
+				log.Debug("client receive: connection closed")
 			}
 			return
 		}
