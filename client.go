@@ -35,13 +35,13 @@ type Client struct {
 	connectionId      string
 }
 
-func NewClient(url string) (c *Client, err error) {
+func NewClient(url string) (c *Client) {
 	c = &Client{
 		url: url,
 	}
 
 	c.Reset()
-	err = c.Connect()
+
 	return
 }
 
