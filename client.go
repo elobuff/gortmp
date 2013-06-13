@@ -2,6 +2,7 @@ package rtmp
 
 import (
 	"crypto/tls"
+	"github.com/elobuff/goamf"
 	"net"
 	"net/url"
 	"sync"
@@ -33,6 +34,8 @@ type Client struct {
 
 	lastTransactionId uint32
 	connectionId      string
+
+	amfExternalHandlers map[string]amf.ExternalHandler
 }
 
 func NewClient(url string) (c *Client) {
@@ -78,9 +81,14 @@ func (c *Client) Reset() {
 	c.inChunkSize = DEFAULT_CHUNK_SIZE
 	c.inWindowSize = DEFAULT_WINDOW_SIZE
 	c.inChunkStreams = make(map[uint32]*InboundChunkStream)
+	c.amfExternalHandlers = make(map[string]amf.ExternalHandler)
 	c.responses = make(map[uint32]*Response)
 	c.lastTransactionId = 0
 	c.connectionId = ""
+}
+
+func (c *Client) RegisterExternalHandler(name string, fn amf.ExternalHandler) {
+	c.amfExternalHandlers[name] = fn
 }
 
 func (c *Client) Disconnect() {

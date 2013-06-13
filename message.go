@@ -24,9 +24,13 @@ func (m *Message) RemainingBytes() uint32 {
 	return m.Length - uint32(m.Buffer.Len())
 }
 
-func (m *Message) DecodeResponse() (response *Response, err error) {
-	dec := new(amf.Decoder)
+func (m *Message) DecodeResponse(c *Client) (response *Response, err error) {
+	dec := amf.NewDecoder()
 	response = new(Response)
+
+	for nam, fn := range c.amfExternalHandlers {
+		dec.RegisterExternalHandler(nam, fn)
+	}
 
 	if m.ChunkStreamId != CHUNK_STREAM_ID_COMMAND {
 		return response, Error("message is not a command message")
