@@ -25,6 +25,18 @@ func (r *Response) IsError() bool {
 	return r.Name == "_error"
 }
 
+func (r *Response) HasBody() (result bool) {
+	for _, obj := range r.Objects {
+		if obj, ok := obj.(amf.Object); ok == true {
+			if _, ok := obj["body"]; ok == true {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (r *Response) DecodeBody() (result interface{}, err error) {
 	for _, obj := range r.Objects {
 		if obj, ok := obj.(amf.Object); ok == true {
