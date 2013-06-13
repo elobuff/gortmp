@@ -40,7 +40,8 @@ type Client struct {
 
 func NewClient(url string) (c *Client) {
 	c = &Client{
-		url: url,
+		url:                 url,
+		amfExternalHandlers: make(map[string]amf.ExternalHandler),
 	}
 
 	c.Reset()
@@ -81,7 +82,6 @@ func (c *Client) Reset() {
 	c.inChunkSize = DEFAULT_CHUNK_SIZE
 	c.inWindowSize = DEFAULT_WINDOW_SIZE
 	c.inChunkStreams = make(map[uint32]*InboundChunkStream)
-	c.amfExternalHandlers = make(map[string]amf.ExternalHandler)
 	c.responses = make(map[uint32]*Response)
 	c.lastTransactionId = 0
 	c.connectionId = ""
