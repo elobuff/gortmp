@@ -32,8 +32,6 @@ type Client struct {
 	responses      map[uint32]*Response
 	responsesMutex sync.Mutex
 
-	rateLimit uint32
-
 	lastTransactionId uint32
 	connectionId      string
 
@@ -60,12 +58,6 @@ func (c *Client) IsAlive() bool {
 	return true
 }
 
-func (c *Client) SetRateLimit(n uint32) {
-	if n > 0 {
-		c.rateLimit = n
-	}
-}
-
 func (c *Client) Reset() {
 	c.connected = false
 
@@ -82,12 +74,12 @@ func (c *Client) Reset() {
 	}
 
 	c.outBytes = 0
-	c.outMessages = make(chan *Message, 100)
+	c.outMessages = make(chan *Message, 1000)
 	c.outChunkSize = DEFAULT_CHUNK_SIZE
 	c.outWindowSize = DEFAULT_WINDOW_SIZE
 	c.outChunkStreams = make(map[uint32]*OutboundChunkStream)
 	c.inBytes = 0
-	c.inMessages = make(chan *Message, 100)
+	c.inMessages = make(chan *Message, 1000)
 	c.inChunkSize = DEFAULT_CHUNK_SIZE
 	c.inWindowSize = DEFAULT_WINDOW_SIZE
 	c.inChunkStreams = make(map[uint32]*InboundChunkStream)
