@@ -50,4 +50,5 @@ const (
 const (
 	DEFAULT_CHUNK_SIZE  = uint32(128)
 	DEFAULT_WINDOW_SIZE = uint32(2500000)
+	DEFAULT_RATE_LIMIT  = uint32(10000)
 )

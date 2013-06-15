@@ -2,10 +2,21 @@ package rtmp
 
 import (
 	"io"
+	"time"
 )
 
 func (c *Client) sendLoop() {
+	rateLimit := make(chan time.Time, c.rateLimit*5)
+
+	go func() {
+		for t := range time.Tick(time.Second / time.Duration(c.rateLimit)) {
+			rateLimit <- t
+		}
+	}()
+
 	for {
+		<-rateLimit
+
 		m, open := <-c.outMessages
 
 		if !open {

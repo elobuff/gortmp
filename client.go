@@ -32,6 +32,8 @@ type Client struct {
 	responses      map[uint32]*Response
 	responsesMutex sync.Mutex
 
+	rateLimit uint32
+
 	lastTransactionId uint32
 	connectionId      string
 
@@ -41,6 +43,7 @@ type Client struct {
 func NewClient(url string) (c *Client) {
 	c = &Client{
 		url:                 url,
+		rateLimit:           DEFAULT_RATE_LIMIT,
 		amfExternalHandlers: make(map[string]amf.ExternalHandler),
 	}
 
@@ -55,6 +58,12 @@ func (c *Client) IsAlive() bool {
 	}
 
 	return true
+}
+
+func (c *Client) SetRateLimit(n uint32) {
+	if n > 0 {
+		c.rateLimit = n
+	}
 }
 
 func (c *Client) Reset() {
