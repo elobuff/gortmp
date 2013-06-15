@@ -2,7 +2,6 @@ package rtmp
 
 import (
 	"io"
-	"time"
 )
 
 func (c *Client) sendLoop() {

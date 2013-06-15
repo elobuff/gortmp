@@ -41,7 +41,6 @@ type Client struct {
 func NewClient(url string) (c *Client) {
 	c = &Client{
 		url:                 url,
-		rateLimit:           DEFAULT_RATE_LIMIT,
 		amfExternalHandlers: make(map[string]amf.ExternalHandler),
 	}
 
