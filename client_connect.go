@@ -19,7 +19,7 @@ func (c *Client) connect() (id string, err error) {
 		return id, Error("client connect: unable to complete connect: %s", err)
 	}
 
-	if !response.IsResult() {
+	if response.Name != "_result" {
 		return id, Error("client connect: connect result unsuccessful: %#v", response)
 	}
 

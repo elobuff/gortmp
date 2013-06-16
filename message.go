@@ -16,6 +16,12 @@ type Message struct {
 	Buffer            *bytes.Buffer
 }
 
+type Response struct {
+	Name          string
+	TransactionId float64
+	Objects       []interface{}
+}
+
 func (m *Message) RemainingBytes() uint32 {
 	if m.Buffer == nil {
 		return m.Length
