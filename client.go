@@ -145,8 +145,24 @@ func (c *Client) NextTransactionId() uint32 {
 	return atomic.AddUint32(&c.lastTransactionId, 1)
 }
 
-func (c *Client) Call(msg *Message, t uint32) (response *Response, err error) {
+func (c *Client) GetResponse(tid uint32) (response *Response, ready bool) {
+	c.responsesMutex.Lock()
+	defer c.responsesMutex.Unlock()
+	response = c.responses[tid]
+	if response != nil {
+		ready = true
+		delete(c.responses, tid)
+	}
+	return
+}
+
+func (c *Client) SendMessage(msg *Message) {
+	log.Debug("SENDING MESSAGE: %d", msg.TransactionId)
 	c.outMessages <- msg
+}
+
+func (c *Client) Call(msg *Message, t uint32) (response *Response, err error) {
+	c.SendMessage(msg)
 
 	tid := msg.TransactionId
 	poll := time.Tick(time.Duration(5) * time.Millisecond)
