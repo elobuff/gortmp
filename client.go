@@ -73,12 +73,12 @@ func (c *Client) Reset() {
 	}
 
 	c.outBytes = 0
-	c.outMessages = make(chan *Message, 1000)
+	c.outMessages = make(chan *Message, 100)
 	c.outChunkSize = DEFAULT_CHUNK_SIZE
 	c.outWindowSize = DEFAULT_WINDOW_SIZE
 	c.outChunkStreams = make(map[uint32]*OutboundChunkStream)
 	c.inBytes = 0
-	c.inMessages = make(chan *Message, 1000)
+	c.inMessages = make(chan *Message, 100)
 	c.inChunkSize = DEFAULT_CHUNK_SIZE
 	c.inWindowSize = DEFAULT_WINDOW_SIZE
 	c.inChunkStreams = make(map[uint32]*InboundChunkStream)
