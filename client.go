@@ -106,10 +106,25 @@ func (c *Client) Connect() (err error) {
 
 	switch url.Scheme {
 	case "rtmp":
-		c.conn, err = net.Dial("tcp", url.Host)
+		c.conn, err = net.DialTimeout("tcp", url.Host, 5*time.Second)
+		if err != nil {
+			return err
+		}
 	case "rtmps":
+		var nc net.Conn
+		nc, err = net.DialTimeout("tcp", url.Host, 5*time.Second)
+		if err != nil {
+			return err
+		}
+
 		config := &tls.Config{InsecureSkipVerify: true}
-		c.conn, err = tls.Dial("tcp", url.Host, config)
+		tc := tls.Client(nc, config)
+		err = tc.Handshake()
+		if err != nil {
+			return err
+		}
+
+		c.conn = tc
 	default:
 		return Error("Unsupported scheme: %s", url.Scheme)
 	}
