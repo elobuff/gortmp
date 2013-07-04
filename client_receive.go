@@ -11,7 +11,7 @@ func (c *Client) receiveLoop() {
 		h, err := ReadHeader(c)
 		if err != nil {
 			if c.IsAlive() {
-				log.Warn("unable to receive next header while connected")
+				log.Warn("unable to receive next header while connected: %s", err)
 				c.Reset()
 			} else {
 				log.Debug("client receive: connection closed")
