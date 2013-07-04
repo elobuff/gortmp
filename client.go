@@ -93,11 +93,11 @@ func (c *Client) RegisterExternalHandler(name string, fn amf.ExternalHandler) {
 
 func (c *Client) Disconnect() {
 	c.Reset()
-	log.Info("disconnected from %s", c.url)
+	log.Debug("disconnected from %s", c.url)
 }
 
 func (c *Client) Connect() (err error) {
-	log.Info("connecting to %s", c.url)
+	log.Debug("connecting to %s", c.url)
 
 	url, err := url.Parse(c.url)
 	if err != nil {
@@ -151,7 +151,7 @@ func (c *Client) Connect() (err error) {
 	c.connected = true
 	c.connectionId = id
 
-	log.Info("connected to %s (%s)", c.url, c.connectionId)
+	log.Debug("connected to %s (%s)", c.url, c.connectionId)
 
 	return
 }
