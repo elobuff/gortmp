@@ -172,7 +172,6 @@ func (c *Client) GetResponse(tid uint32) (response *Response, ready bool) {
 }
 
 func (c *Client) SendMessage(msg *Message) {
-	log.Debug("SENDING MESSAGE: %d", msg.TransactionId)
 	c.outMessages <- msg
 }
 
@@ -186,16 +185,9 @@ func (c *Client) Call(msg *Message, t uint32) (response *Response, err error) {
 	for {
 		select {
 		case <-poll:
-			c.responsesMutex.Lock()
-			response = c.responses[tid]
-			if response != nil {
-				log.Trace("client call: found response for %d", tid)
-				delete(c.responses, tid)
-			}
-			c.responsesMutex.Unlock()
-
-			if response != nil {
-				return
+			res, ready := c.GetResponse(tid)
+			if ready {
+				return res, nil
 			}
 		case <-timeout:
 			return response, Error("timed out (no response after %d seconds)", t)
