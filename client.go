@@ -2,12 +2,17 @@ package rtmp
 
 import (
 	"crypto/tls"
+	"errors"
 	"github.com/elobuff/goamf"
 	"net"
 	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
+)
+
+var (
+	ErrResponseTimeout = errors.New("rtmp: response timeout")
 )
 
 type Client struct {
@@ -190,7 +195,7 @@ func (c *Client) Call(msg *Message, t uint32) (response *Response, err error) {
 				return res, nil
 			}
 		case <-timeout:
-			return response, Error("timed out (no response after %d seconds)", t)
+			return response, ErrResponseTimeout
 		}
 	}
 
