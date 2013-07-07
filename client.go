@@ -184,12 +184,15 @@ func (c *Client) Call(msg *Message, t uint32) (response *Response, err error) {
 	c.SendMessage(msg)
 
 	tid := msg.TransactionId
-	poll := time.Tick(time.Duration(5) * time.Millisecond)
+
+	ticker := time.NewTicker(time.Duration(5) * time.Millisecond)
+	defer ticker.Stop()
+
 	timeout := time.After(time.Duration(t) * time.Second)
 
 	for {
 		select {
-		case <-poll:
+		case <-ticker.C:
 			res, ready := c.GetResponse(tid)
 			if ready {
 				return res, nil
