@@ -2,8 +2,9 @@ package rtmp
 
 import (
 	"bytes"
-	"code.google.com/p/go-uuid/uuid"
+
 	"github.com/elobuff/goamf"
+	"github.com/pborman/uuid"
 )
 
 func (c *Client) connect() (id string, err error) {
